@@ -6,6 +6,7 @@ import { UserWarning } from './UserWarning';
 import { addTodo, deleteTodo, getTodos, USER_ID } from './api/todos';
 import { Todo } from './types/Todo';
 import { FilterStatus } from './types/FilterStatus';
+import { TodoRow } from './components/TodoRow';
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -15,6 +16,10 @@ export const App: React.FC = () => {
   const [processingIds, setProcessingIds] = useState<number[]>([]);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [filter, setFilter] = useState<FilterStatus>(FilterStatus.all);
+  const [visibleTodos, setVisibleTodos] = useState<Todo[]>([]);
+  const [activeTodosCount, setActiveTodosCount] = useState<number>(0);
+  const [completedTodosCount, setCompletedTodosCount] = useState<number>(0);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   function showErrorMessage(errorMessage: string) {
@@ -49,25 +54,31 @@ export const App: React.FC = () => {
     inputRef.current?.focus();
   }, [isLoading]);
 
-  const visibleTodos = todos.filter(currentTodo => {
-    if (filter === FilterStatus.active) {
-      return !currentTodo.completed;
-    }
+  useEffect(() => {
+    const filteredTodos = todos.filter(currentTodo => {
+      if (filter === FilterStatus.active) {
+        return !currentTodo.completed;
+      }
 
-    if (filter === FilterStatus.completed) {
-      return currentTodo.completed;
-    }
+      if (filter === FilterStatus.completed) {
+        return currentTodo.completed;
+      }
 
-    return true;
-  });
+      return true;
+    });
 
-  const activeTodosCount = todos.filter(
-    currentTodo => currentTodo.completed === false,
-  ).length;
+    setVisibleTodos(filteredTodos);
+  }, [filter, todos]);
 
-  const completedTodosCount = todos.filter(
-    currentTodo => currentTodo.completed === true,
-  ).length;
+  useEffect(() => {
+    setActiveTodosCount(
+      todos.filter(currentTodo => currentTodo.completed === false).length,
+    );
+
+    setCompletedTodosCount(
+      todos.filter(currentTodo => currentTodo.completed === true).length,
+    );
+  }, [todos]);
 
   function handleOnSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -192,45 +203,12 @@ export const App: React.FC = () => {
 
         <section className="todoapp__main" data-cy="TodoList">
           {visibleTodos.map(currentTodo => (
-            <div
-              data-cy="Todo"
+            <TodoRow
               key={currentTodo.id}
-              className={cn('todo', { completed: currentTodo.completed })}
-            >
-              <label className="todo__status-label">
-                <input
-                  data-cy="TodoStatus"
-                  type="checkbox"
-                  className="todo__status"
-                  checked={currentTodo.completed}
-                />
-              </label>
-
-              <span data-cy="TodoTitle" className="todo__title">
-                {currentTodo.title}
-              </span>
-
-              {/* Remove button appears only on hover */}
-              <button
-                type="button"
-                className="todo__remove"
-                data-cy="TodoDelete"
-                onClick={() => handleOnDelete(currentTodo.id)}
-              >
-                ×
-              </button>
-
-              {/* overlay will cover the todo while it is being deleted or updated */}
-              <div
-                data-cy="TodoLoader"
-                className={cn('modal', 'overlay', {
-                  'is-active': processingIds.includes(currentTodo.id),
-                })}
-              >
-                <div className="modal-background has-background-white-ter" />
-                <div className="loader" />
-              </div>
-            </div>
+              todo={currentTodo}
+              isProcessing={processingIds.includes(currentTodo.id)}
+              onDelete={() => handleOnDelete(currentTodo.id)}
+            />
           ))}
 
           {tempTodo && (
